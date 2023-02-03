@@ -95,7 +95,7 @@ Display the data
 
 ```{r display_data, echo = T}
 
-profil_df %>% kable() %>% kable_styling("striped") %>%
+profil_df %>% head() %>% kable() %>% kable_styling("striped") %>%
   scroll_box(height = "500px", width = "100%", fixed_thead = T)
 
 ```
