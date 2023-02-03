@@ -1,0 +1,112 @@
+---
+title: "Scrape SBACC"
+author: "Rachdyan"
+date: "2023-02-02"
+output: github_document
+always_allow_html: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+We want to scrape the Professional Manager Certification (PMC) data from SBACC website here: https://sbacc.org.sg/services/pmc-search/
+
+First, load the needed libraries for the project
+
+```{r library, echo = T, message = F, warning = F}
+library(rvest)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(knitr)
+library(kableExtra)
+```
+
+## Get all the profile links
+
+Get all the profile links from the directory
+
+```{r scrape_link, cache = T}
+
+link <- c()
+
+## There are a total of 35 pages in the directory
+for(i in 1 :35){
+  url <- paste("https://sbacc.org.sg/services/pmc-search/page/", i, "/?wpbdp_view=search&dosrch=1&listingfields%5B11%5D&listingfields%5B1%5D", sep = "")
+  page <- read_html(url)
+  temp_link <- page %>% html_nodes("div[class='listing-title']") %>% html_nodes("a") %>% html_attr("href")
+  link <- c(link, temp_link)
+}
+
+## See the link example
+head(link)
+```
+
+
+## Scrape data from the profile link
+
+Get all the profile links from the directory
+
+```{r scrape_profile, cache = T}
+profil_df <- data.frame()
+
+for(i in 1:length(link)){
+  url <- link[i]
+  page <- read_html(url)
+  name <- page %>% html_nodes("h1[class='page-header-title clr']") %>%  html_text2()
+  
+  pmc_code <- page %>%  html_nodes("div[class='wpbdp-field-display wpbdp-field wpbdp-field-value field-display field-value wpbdp-field-pmc_code wpbdp-field-meta wpbdp-field-type-textfield wpbdp-field-association-meta  ']") %>% 
+    html_nodes("div[class='value']") %>% html_text2() %>% ifelse(identical(., character(0)), NA, .)
+  
+  position <- page %>% html_nodes("div[class='wpbdp-field-display wpbdp-field wpbdp-field-value field-display field-value wpbdp-field-position wpbdp-field-meta wpbdp-field-type-textfield wpbdp-field-association-meta  ']") %>% 
+    html_nodes("div[class='value']") %>% html_text2() %>% ifelse(identical(., character(0)), NA, .)
+  
+  company <- page %>% html_nodes("div[class='wpbdp-field-display wpbdp-field wpbdp-field-value field-display field-value wpbdp-field-company wpbdp-field-meta wpbdp-field-type-textarea wpbdp-field-association-meta  ']") %>% 
+    html_nodes("div[class='value']") %>% html_text2() %>% ifelse(identical(., character(0)), NA, .)
+  
+  office <- page %>% html_nodes("div[class='wpbdp-field-display wpbdp-field wpbdp-field-value field-display field-value wpbdp-field-office wpbdp-field-meta wpbdp-field-type-textfield wpbdp-field-association-meta  ']") %>% 
+    html_nodes("div[class='value']") %>% html_text2() %>% ifelse(identical(., character(0)), NA, .)
+  
+  phone <- page %>% html_nodes("div[class='wpbdp-field-display wpbdp-field wpbdp-field-value field-display field-value wpbdp-field-phone_number wpbdp-field-meta wpbdp-field-type-textfield wpbdp-field-association-meta  ']") %>% 
+    html_nodes("div[class='value']") %>% html_text2() %>% ifelse(identical(., character(0)), NA, .)
+  
+  verif <- page %>% html_nodes("div[class='wpbdp-field-display wpbdp-field wpbdp-field-value field-display field-value wpbdp-field-pmc_verification wpbdp-field-meta wpbdp-field-type-radio wpbdp-field-association-meta  ']") %>% 
+    html_nodes("div[class='value']") %>% html_text2() %>% ifelse(identical(., character(0)), NA, .)
+  
+  status <- page %>% html_nodes("div[class='wpbdp-field-display wpbdp-field wpbdp-field-value field-display field-value wpbdp-field-certification_status wpbdp-field-meta wpbdp-field-type-radio wpbdp-field-association-meta  ']") %>% 
+    html_nodes("div[class='value']") %>% html_text2() %>% ifelse(identical(., character(0)), NA, .)
+  
+  experties <- page %>% html_nodes("div[class='wpbdp-field-display wpbdp-field wpbdp-field-value field-display field-value wpbdp-field-area_of_expertise wpbdp-field-meta wpbdp-field-type-textarea wpbdp-field-association-meta  ']") %>% 
+    html_nodes("div[class='value']") %>% html_text2() %>% ifelse(identical(., character(0)), NA, .)
+  
+  temp_df <- data.frame(name = name, pmc_code = pmc_code, position = position, 
+                        company = company, office = office, phone = phone, 
+                        verif = verif, status = status, experties = experties)
+  profil_df <- rbind(profil_df, temp_df)
+}
+
+
+```
+
+Display the data
+
+```{r display_data, echo = T}
+
+profil_df %>% kable() %>% kable_styling("striped") %>%
+  scroll_box(height = "500px", width = "100%", fixed_thead = T)
+
+```
+
+## Export the data
+
+Export the data as a csv file
+
+```{r save_data, echo=TRUE}
+
+write.csv(profil_df, "./data/PMC_data.csv", col.names = F)
+
+```
+
